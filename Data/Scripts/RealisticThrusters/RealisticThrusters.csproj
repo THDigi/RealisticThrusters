@@ -43,6 +43,11 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
     <Prefer32Bit>false</Prefer32Bit>
+    <CodeAnalysisRuleSet>RealisticThrusters.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
+    <CodeAnalysisRuleSet>RealisticThrusters.ruleset</CodeAnalysisRuleSet>
+    <LangVersion>6</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Sandbox.Common">
@@ -87,8 +92,13 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Log.cs" />
-    <Compile Include="RealisticThrusters.cs" />
+    <Compile Include="Thruster.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Analyzer Include="..\..\..\..\..\_SharedCode\SEWhitelistChecker.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="RealisticThrusters.ruleset" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
