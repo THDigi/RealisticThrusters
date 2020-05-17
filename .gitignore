@@ -279,3 +279,8 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+
+# Custom
+/Ignored/
+*.txt
