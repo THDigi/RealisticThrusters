@@ -1,51 +1,78 @@
 ﻿using System;
 using Sandbox.Common.ObjectBuilders;
 using Sandbox.Game.Entities;
-using Sandbox.ModAPI;
-using VRage.Game;
 using VRage.Game.Components;
 using VRage.ModAPI;
 using VRage.ObjectBuilders;
-using VRage.Utils;
+using VRageMath;
 
 namespace Digi.RealisticThrusters
 {
-    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_Thrust), useEntityUpdate: false)]
+    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_Thrust), false)]
     public class Thruster : MyGameLogicComponent
     {
-        private MyThrust thruster;
+        public MyThrust Block;
+        bool RealisticMode = true;
 
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
         {
-            thruster = (MyThrust)Entity;
-            NeedsUpdate = MyEntityUpdateEnum.EACH_FRAME;
+            Block = (MyThrust)Entity;
+            Block.IsWorkingChanged += WorkingChanged;
+            SetRealisticMode(true);
+        }
+
+        public override void Close()
+        {
+            if(Block == null)
+                return;
+
+            Block.IsWorkingChanged -= WorkingChanged;
+        }
+
+        void WorkingChanged(MyCubeBlock obj)
+        {
+            SetRealisticMode(RealisticMode);
+        }
+
+        public void SetRealisticMode(bool realisticMode)
+        {
+            RealisticMode = realisticMode;
+
+            if(RealisticMode && Block.IsWorking)
+                NeedsUpdate |= MyEntityUpdateEnum.EACH_FRAME;
+            else
+                NeedsUpdate &= ~MyEntityUpdateEnum.EACH_FRAME;
         }
 
         public override void UpdateBeforeSimulation()
         {
             try
             {
-                var grid = thruster.CubeGrid;
-
-                if(grid.Physics == null || !grid.Physics.Enabled || grid.Physics.IsStatic || !thruster.IsWorking)
+                if(!RealisticMode || !Block.IsWorking)
                     return;
 
-                var thrustMatrix = thruster.WorldMatrix;
-                var force = thrustMatrix.Backward * thruster.BlockDefinition.ForceMagnitude * thruster.CurrentStrength;
+                var grid = Block.CubeGrid;
+                if(grid.IsPreview || grid.Physics == null || !grid.Physics.Enabled || grid.Physics.IsStatic)
+                    return;
+
+                float strength = Block.BlockDefinition.ForceMagnitude * Block.CurrentStrength;
+
+                if(Math.Abs(strength) < 0.00001f)
+                    return;
+
+                Vector3D force = Block.WorldMatrix.Backward * strength;
+
                 var groupProperties = MyGridPhysicalGroupData.GetGroupSharedProperties(grid);
 
                 // cancel the thruster's force at grid-group center of mass
                 grid.Physics.AddForce(MyPhysicsForceType.APPLY_WORLD_FORCE, -force, groupProperties.CoMWorld, null);
 
                 // apply the thruster's force at its position
-                grid.Physics.AddForce(MyPhysicsForceType.APPLY_WORLD_FORCE, force, thrustMatrix.Translation, null);
+                grid.Physics.AddForce(MyPhysicsForceType.APPLY_WORLD_FORCE, force, Block.PositionComp.WorldVolume.Center, null);
             }
             catch(Exception e)
             {
-                MyLog.Default.WriteLineAndConsole($"{e.Message}\n{e.StackTrace}");
-
-                if(MyAPIGateway.Session?.Player != null)
-                    MyAPIGateway.Utilities.ShowNotification($"[ ERROR: {GetType().FullName}: {e.Message} | Send SpaceEngineers.Log to mod author ]", 10000, MyFontEnum.Red);
+                Log.Error(e);
             }
         }
     }
