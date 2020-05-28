@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Sandbox.Game;
 using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
 using VRage.Collections;
@@ -20,7 +21,7 @@ namespace Digi.RealisticThrusters
         private readonly List<int> RemoveLogicIndex = new List<int>();
         private readonly MyConcurrentPool<GridLogic> LogicPool = new MyConcurrentPool<GridLogic>();
 
-        private const int PlayersUpdateInterval = LogicUpdateInterval;
+        private const int PlayersUpdateInterval = 60 * 5;
         private int PlayersUpdateTick = 0;
         public readonly List<IMyPlayer> Players = new List<IMyPlayer>();
 
@@ -29,12 +30,16 @@ namespace Digi.RealisticThrusters
             Instance = this;
             Log.ModName = "Realistic Thrusters";
             MyAPIGateway.Entities.OnEntityAdd += EntityAdded;
+            MyVisualScriptLogicProvider.PlayerConnected += PlayersChanged;
+            MyVisualScriptLogicProvider.PlayerDisconnected += PlayersChanged;
         }
 
         protected override void UnloadData()
         {
             Instance = null;
             MyAPIGateway.Entities.OnEntityAdd -= EntityAdded;
+            MyVisualScriptLogicProvider.PlayerConnected -= PlayersChanged;
+            MyVisualScriptLogicProvider.PlayerDisconnected -= PlayersChanged;
         }
 
         void EntityAdded(IMyEntity ent)
@@ -53,6 +58,11 @@ namespace Digi.RealisticThrusters
             {
                 Log.Error(e);
             }
+        }
+
+        void PlayersChanged(long playerId)
+        {
+            PlayersUpdateTick = PlayersUpdateInterval; // force an early players list update next tick
         }
 
         public override void UpdateBeforeSimulation()
