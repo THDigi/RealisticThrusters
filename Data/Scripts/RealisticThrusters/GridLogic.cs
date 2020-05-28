@@ -9,8 +9,8 @@ namespace Digi.RealisticThrusters
     {
         public MyCubeGrid Grid;
 
-        private bool IsNPCOwned;
-        private long LastCheckedOwner;
+        private bool _isNPCOwned;
+        private long _lastCheckedOwner;
 
         private bool RealisticThrusters;
         private readonly List<Thruster> Thrusters = new List<Thruster>();
@@ -22,9 +22,9 @@ namespace Digi.RealisticThrusters
         {
             try
             {
-                RealisticThrusters = true;
-                LastCheckedOwner = -1;
                 Grid = grid;
+                RealisticThrusters = true;
+                _lastCheckedOwner = -1;
 
                 // NOTE: not all blocks are fatblocks, but the kind of blocks we need are always fatblocks.
                 foreach(var block in Grid.GetFatBlocks())
@@ -152,8 +152,7 @@ namespace Digi.RealisticThrusters
                     }
                     else
                     {
-                        IsNPCOwned = ComputeIsNPCOwned();
-                        RealisticThrusters = !IsNPCOwned;
+                        RealisticThrusters = !IsNPCOwned();
                     }
                 }
 
@@ -223,23 +222,25 @@ namespace Digi.RealisticThrusters
             return false;
         }
 
-        bool ComputeIsNPCOwned()
+        bool IsNPCOwned()
         {
             if(Grid.BigOwners == null || Grid.BigOwners.Count == 0)
             {
-                LastCheckedOwner = -1;
+                _lastCheckedOwner = -1;
+                _isNPCOwned = false;
                 return false;
             }
 
             var owner = Grid.BigOwners[0]; // only check the first one, too edge case to check others 
 
-            if(LastCheckedOwner == owner)
-                return IsNPCOwned;
+            if(_lastCheckedOwner == owner)
+                return _isNPCOwned;
 
-            LastCheckedOwner = owner;
+            _lastCheckedOwner = owner;
 
             var faction = MyAPIGateway.Session.Factions.TryGetPlayerFaction(owner);
-            return (faction != null && faction.IsEveryoneNpc());
+            _isNPCOwned = (faction != null && faction.IsEveryoneNpc());
+            return _isNPCOwned;
         }
     }
 }
