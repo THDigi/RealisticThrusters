@@ -72,7 +72,10 @@ namespace Digi.RealisticThrusters
                 {
                     var logic = block?.GameLogic?.GetAs<Thruster>();
                     if(logic != null)
+                    {
                         Thrusters.Add(logic);
+                        logic.SetRealisticMode(RealisticThrusters);
+                    }
                     return;
                 }
 
@@ -97,9 +100,7 @@ namespace Digi.RealisticThrusters
                 {
                     for(int i = (Thrusters.Count - 1); i >= 0; --i)
                     {
-                        var logic = Thrusters[i];
-
-                        if(logic.Block == block)
+                        if(Thrusters[i].Block == block)
                         {
                             Thrusters.RemoveAtFast(i);
                             break;
@@ -161,8 +162,7 @@ namespace Digi.RealisticThrusters
                 {
                     for(int i = (Thrusters.Count - 1); i >= 0; --i)
                     {
-                        var logic = Thrusters[i];
-                        logic.SetRealisticMode(RealisticThrusters);
+                        Thrusters[i].SetRealisticMode(RealisticThrusters);
                     }
                 }
             }
@@ -188,7 +188,7 @@ namespace Digi.RealisticThrusters
 
         bool IsPlayerControlled()
         {
-            var players = RealisticThrustersMod.Instance.Players; // list is updated every second in session comp
+            var players = RealisticThrustersMod.Instance.Players; // list is updated in session comp
 
             foreach(var player in players)
             {

@@ -18,14 +18,10 @@ namespace Digi.RealisticThrusters
         {
             Block = (MyThrust)Entity;
             Block.IsWorkingChanged += WorkingChanged;
-            SetRealisticMode(true);
         }
 
         public override void Close()
         {
-            if(Block == null)
-                return;
-
             Block.IsWorkingChanged -= WorkingChanged;
         }
 
