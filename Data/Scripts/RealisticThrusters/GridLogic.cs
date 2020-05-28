@@ -15,8 +15,6 @@ namespace Digi.RealisticThrusters
         private bool RealisticThrusters;
         private readonly List<Thruster> Thrusters = new List<Thruster>();
 
-        private readonly List<MyRemoteControl> RemoteControls = new List<MyRemoteControl>();
-
         // NOTE: object is re-used, this is called when retrieved from pool.
         public void Init(MyCubeGrid grid)
         {
@@ -56,7 +54,6 @@ namespace Digi.RealisticThrusters
                 }
 
                 Thrusters.Clear();
-                RemoteControls.Clear();
             }
             catch(Exception e)
             {
@@ -76,13 +73,6 @@ namespace Digi.RealisticThrusters
                         Thrusters.Add(logic);
                         logic.SetRealisticMode(RealisticThrusters);
                     }
-                    return;
-                }
-
-                var rc = block as MyRemoteControl;
-                if(rc != null)
-                {
-                    RemoteControls.Add(rc);
                     return;
                 }
             }
@@ -108,19 +98,6 @@ namespace Digi.RealisticThrusters
                     }
                     return;
                 }
-
-                if(block is MyRemoteControl)
-                {
-                    for(int i = (RemoteControls.Count - 1); i >= 0; --i)
-                    {
-                        if(RemoteControls[i] == block)
-                        {
-                            RemoteControls.RemoveAtFast(i);
-                            break;
-                        }
-                    }
-                    return;
-                }
             }
             catch(Exception e)
             {
@@ -140,21 +117,10 @@ namespace Digi.RealisticThrusters
 
                 bool prevRealistic = RealisticThrusters;
 
-                if(HasDroneAI())
-                {
-                    RealisticThrusters = false;
-                }
+                if(IsPlayerControlled())
+                    RealisticThrusters = true;
                 else
-                {
-                    if(IsPlayerControlled())
-                    {
-                        RealisticThrusters = true;
-                    }
-                    else
-                    {
-                        RealisticThrusters = !IsNPCOwned();
-                    }
-                }
+                    RealisticThrusters = !IsNPCOwned();
 
                 // mode changed, apply it
                 if(prevRealistic != RealisticThrusters)
@@ -169,20 +135,6 @@ namespace Digi.RealisticThrusters
             {
                 Log.Error(e);
             }
-        }
-
-        bool HasDroneAI()
-        {
-            if(RemoteControls.Count == 0)
-                return false;
-
-            foreach(var rc in RemoteControls)
-            {
-                if(rc.AutomaticBehaviour != null)
-                    return true;
-            }
-
-            return false;
         }
 
         bool IsPlayerControlled()
