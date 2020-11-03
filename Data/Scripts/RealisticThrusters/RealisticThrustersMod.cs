@@ -34,6 +34,7 @@ namespace Digi.RealisticThrusters
             MyAPIGateway.Entities.OnEntityAdd += EntityAdded;
             MyVisualScriptLogicProvider.PlayerConnected += PlayersChanged;
             MyVisualScriptLogicProvider.PlayerDisconnected += PlayersChanged;
+            MyAPIGateway.Session.Factions.FactionEdited += FactionEdited;
         }
 
         protected override void UnloadData()
@@ -42,6 +43,7 @@ namespace Digi.RealisticThrusters
             MyAPIGateway.Entities.OnEntityAdd -= EntityAdded;
             MyVisualScriptLogicProvider.PlayerConnected -= PlayersChanged;
             MyVisualScriptLogicProvider.PlayerDisconnected -= PlayersChanged;
+            MyAPIGateway.Session.Factions.FactionEdited -= FactionEdited;
         }
 
         void EntityAdded(IMyEntity ent)
@@ -65,6 +67,29 @@ namespace Digi.RealisticThrusters
         void PlayersChanged(long playerId)
         {
             PlayersUpdateTick = PlayersUpdateInterval; // force an early players list update next tick
+        }
+
+        void FactionEdited(long factionId)
+        {
+            try
+            {
+                var faction = MyAPIGateway.Session.Factions.TryGetFactionById(factionId);
+
+                if(faction == null)
+                    return;
+
+                if(!faction.IsEveryoneNpc())
+                    return;
+
+                foreach(var gridLogic in GridLogic)
+                {
+                    gridLogic.FactionEdited();
+                }
+            }
+            catch(Exception e)
+            {
+                Log.Error(e);
+            }
         }
 
         public override void UpdateBeforeSimulation()

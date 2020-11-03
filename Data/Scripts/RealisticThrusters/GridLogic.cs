@@ -203,7 +203,7 @@ namespace Digi.RealisticThrusters
 
                 string customData = shipCtrl.CustomData; // cache because it allocates string on every call
 
-                if(!string.IsNullOrEmpty(customData) && customData.IndexOf(RealisticThrustersMod.CUSTOMDATA_FORCE_TAG) != -1)
+                if(!string.IsNullOrEmpty(customData) && customData.IndexOf(RealisticThrustersMod.CUSTOMDATA_FORCE_TAG, StringComparison.OrdinalIgnoreCase) != -1)
                 {
                     ForcedRealistic = true;
                     return;
@@ -275,8 +275,26 @@ namespace Digi.RealisticThrusters
             _lastCheckedOwner = owner;
 
             var faction = MyAPIGateway.Session.Factions.TryGetPlayerFaction(owner);
-            _isNPCOwned = (faction != null && faction.IsEveryoneNpc());
+
+            if(faction == null)
+            {
+                _isNPCOwned = false;
+            }
+            else if(!string.IsNullOrEmpty(faction.PrivateInfo) && faction.PrivateInfo.IndexOf(RealisticThrustersMod.CUSTOMDATA_FORCE_TAG, StringComparison.OrdinalIgnoreCase) != -1)
+            {
+                _isNPCOwned = false;
+            }
+            else
+            {
+                _isNPCOwned = faction.IsEveryoneNpc();
+            }
+
             return _isNPCOwned;
+        }
+
+        public void FactionEdited()
+        {
+            _lastCheckedOwner = -1;
         }
     }
 }
