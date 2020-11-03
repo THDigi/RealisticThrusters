@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
+using VRage.ModAPI;
 
 namespace Digi.RealisticThrusters
 {
@@ -15,6 +16,9 @@ namespace Digi.RealisticThrusters
         private bool RealisticThrusters;
         private readonly List<Thruster> Thrusters = new List<Thruster>();
 
+        private bool ForcedRealistic;
+        private readonly List<IMyShipController> ShipControllers = new List<IMyShipController>();
+
         // NOTE: object is re-used, this is called when retrieved from pool.
         public void Init(MyCubeGrid grid)
         {
@@ -23,6 +27,7 @@ namespace Digi.RealisticThrusters
                 Grid = grid;
                 RealisticThrusters = true;
                 _lastCheckedOwner = -1;
+                ForcedRealistic = false;
 
                 // NOTE: not all blocks are fatblocks, but the kind of blocks we need are always fatblocks.
                 foreach(var block in Grid.GetFatBlocks())
@@ -54,6 +59,7 @@ namespace Digi.RealisticThrusters
                 }
 
                 Thrusters.Clear();
+                ShipControllers.Clear();
             }
             catch(Exception e)
             {
@@ -73,6 +79,16 @@ namespace Digi.RealisticThrusters
                         Thrusters.Add(logic);
                         logic.SetRealisticMode(RealisticThrusters);
                     }
+                    return;
+                }
+
+                var shipCtrl = block as IMyShipController;
+                if(shipCtrl != null)
+                {
+                    shipCtrl.CustomDataChanged += ShipCtrl_CustomDataChanged;
+                    shipCtrl.OnMarkForClose += ShipCtrl_OnMarkForClose;
+                    ShipControllers.Add(shipCtrl);
+                    RefreshShipCtrlCustomData(addedBlock: true);
                     return;
                 }
             }
@@ -98,6 +114,23 @@ namespace Digi.RealisticThrusters
                     }
                     return;
                 }
+
+                var shipCtrl = block as IMyShipController;
+                if(shipCtrl != null)
+                {
+                    for(int i = (ShipControllers.Count - 1); i >= 0; --i)
+                    {
+                        if(ShipControllers[i] == shipCtrl)
+                        {
+                            shipCtrl.CustomDataChanged -= ShipCtrl_CustomDataChanged;
+                            shipCtrl.OnMarkForClose -= ShipCtrl_OnMarkForClose;
+                            ShipControllers.RemoveAtFast(i);
+                            RefreshShipCtrlCustomData();
+                            break;
+                        }
+                    }
+                    return;
+                }
             }
             catch(Exception e)
             {
@@ -117,7 +150,7 @@ namespace Digi.RealisticThrusters
 
                 bool prevRealistic = RealisticThrusters;
 
-                if(IsPlayerControlled())
+                if(ForcedRealistic || IsPlayerControlled())
                     RealisticThrusters = true;
                 else
                     RealisticThrusters = !IsNPCOwned();
@@ -135,6 +168,51 @@ namespace Digi.RealisticThrusters
             {
                 Log.Error(e);
             }
+        }
+
+        void ShipCtrl_CustomDataChanged(IMyTerminalBlock _unused)
+        {
+            RefreshShipCtrlCustomData();
+        }
+
+        void RefreshShipCtrlCustomData(bool addedBlock = false)
+        {
+            // some other block is already forcing realistic mode grid-wide, don't recompute for newly added blocks.
+            if(addedBlock && ForcedRealistic)
+                return;
+
+            ForcedRealistic = false;
+
+            foreach(var shipCtrl in ShipControllers)
+            {
+                var customData = shipCtrl.CustomData; // cache because it allocates string on every call
+
+                if(!string.IsNullOrEmpty(customData) && customData.IndexOf(RealisticThrustersMod.CUSTOMDATA_FORCE_TAG) != -1)
+                {
+                    ForcedRealistic = true;
+                    return;
+                }
+            }
+        }
+
+        // extra safeguard for those edge cases xD
+        void ShipCtrl_OnMarkForClose(IMyEntity ent)
+        {
+            var block = (IMyTerminalBlock)ent;
+
+            block.OnMarkForClose -= ShipCtrl_OnMarkForClose;
+            block.CustomDataChanged -= ShipCtrl_CustomDataChanged;
+
+            for(int i = (ShipControllers.Count - 1); i >= 0; --i)
+            {
+                if(ShipControllers[i] == block)
+                {
+                    ShipControllers.RemoveAtFast(i);
+                    break;
+                }
+            }
+
+            RefreshShipCtrlCustomData();
         }
 
         bool IsPlayerControlled()

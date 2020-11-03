@@ -13,6 +13,8 @@ namespace Digi.RealisticThrusters
     [MySessionComponentDescriptor(MyUpdateOrder.BeforeSimulation)]
     public class RealisticThrustersMod : MySessionComponentBase
     {
+        public const string CUSTOMDATA_FORCE_TAG = "force-realistic-thrust";
+
         public static RealisticThrustersMod Instance;
 
         public const int LogicUpdateInterval = 60 * 2;
