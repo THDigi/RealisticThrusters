@@ -86,7 +86,8 @@ namespace Digi.RealisticThrusters
                 if(shipCtrl != null)
                 {
                     shipCtrl.CustomDataChanged += ShipCtrl_CustomDataChanged;
-                    shipCtrl.OnMarkForClose += ShipCtrl_OnMarkForClose;
+                    shipCtrl.OwnershipChanged += ShipCtrl_OwnershipChanged;
+                    shipCtrl.OnMarkForClose += ShipCtrl_MarkedForClose;
                     ShipControllers.Add(shipCtrl);
                     RefreshShipCtrlCustomData(addedBlock: true);
                     return;
@@ -123,7 +124,8 @@ namespace Digi.RealisticThrusters
                         if(ShipControllers[i] == shipCtrl)
                         {
                             shipCtrl.CustomDataChanged -= ShipCtrl_CustomDataChanged;
-                            shipCtrl.OnMarkForClose -= ShipCtrl_OnMarkForClose;
+                            shipCtrl.OwnershipChanged -= ShipCtrl_OwnershipChanged;
+                            shipCtrl.OnMarkForClose -= ShipCtrl_MarkedForClose;
                             ShipControllers.RemoveAtFast(i);
                             RefreshShipCtrlCustomData();
                             break;
@@ -175,6 +177,11 @@ namespace Digi.RealisticThrusters
             RefreshShipCtrlCustomData();
         }
 
+        void ShipCtrl_OwnershipChanged(IMyTerminalBlock _unused)
+        {
+            RefreshShipCtrlCustomData();
+        }
+
         void RefreshShipCtrlCustomData(bool addedBlock = false)
         {
             // some other block is already forcing realistic mode grid-wide, don't recompute for newly added blocks.
@@ -185,7 +192,16 @@ namespace Digi.RealisticThrusters
 
             foreach(var shipCtrl in ShipControllers)
             {
-                var customData = shipCtrl.CustomData; // cache because it allocates string on every call
+                if(Grid.BigOwners != null && Grid.BigOwners.Count > 0)
+                {
+                    long shipOwner = Grid.BigOwners[0]; // only check the first one, too edge case to check others 
+
+                    // avoid exploits where players can add a cockpit with this tag onto NPC ships to make them unable to fly properly
+                    if(shipOwner != shipCtrl.OwnerId)
+                        continue;
+                }
+
+                string customData = shipCtrl.CustomData; // cache because it allocates string on every call
 
                 if(!string.IsNullOrEmpty(customData) && customData.IndexOf(RealisticThrustersMod.CUSTOMDATA_FORCE_TAG) != -1)
                 {
@@ -196,23 +212,13 @@ namespace Digi.RealisticThrusters
         }
 
         // extra safeguard for those edge cases xD
-        void ShipCtrl_OnMarkForClose(IMyEntity ent)
+        void ShipCtrl_MarkedForClose(IMyEntity ent)
         {
-            var block = (IMyTerminalBlock)ent;
-
-            block.OnMarkForClose -= ShipCtrl_OnMarkForClose;
-            block.CustomDataChanged -= ShipCtrl_CustomDataChanged;
-
-            for(int i = (ShipControllers.Count - 1); i >= 0; --i)
-            {
-                if(ShipControllers[i] == block)
-                {
-                    ShipControllers.RemoveAtFast(i);
-                    break;
-                }
-            }
-
-            RefreshShipCtrlCustomData();
+            var block = ent as MyCubeBlock;
+            if(block == null)
+                Log.Error($"ShipCtrl_OnMarkForClose - entity is not MyCubeBlock??? ent={ent}, id={ent.EntityId.ToString()}, type={ent.GetType()}");
+            else
+                BlockRemoved(block);
         }
 
         bool IsPlayerControlled()
@@ -261,7 +267,7 @@ namespace Digi.RealisticThrusters
                 return false;
             }
 
-            var owner = Grid.BigOwners[0]; // only check the first one, too edge case to check others 
+            long owner = Grid.BigOwners[0]; // only check the first one, too edge case to check others 
 
             if(_lastCheckedOwner == owner)
                 return _isNPCOwned;
