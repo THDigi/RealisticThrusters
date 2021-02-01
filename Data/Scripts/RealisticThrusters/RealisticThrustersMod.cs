@@ -20,6 +20,7 @@ namespace Digi.RealisticThrusters
         public const int LogicUpdateInterval = 60 * 2;
         private int LogicUpdateIndex;
         private readonly List<GridLogic> GridLogic = new List<GridLogic>();
+        private readonly Dictionary<long, GridLogic> GridLogicLookup = new Dictionary<long, GridLogic>();
         private readonly List<int> RemoveLogicIndex = new List<int>();
         private readonly MyConcurrentPool<GridLogic> LogicPool = new MyConcurrentPool<GridLogic>();
 
@@ -51,11 +52,22 @@ namespace Digi.RealisticThrusters
             try
             {
                 var grid = ent as MyCubeGrid;
-                if(grid != null)
+                if(grid != null && grid.CreatePhysics)
                 {
-                    var logic = LogicPool.Get();
-                    logic.Init(grid);
-                    GridLogic.Add(logic);
+                    var logic = GridLogicLookup.GetValueOrDefault(grid.EntityId, null);
+                    if(logic != null)
+                    {
+                        logic.Reset();
+                        logic.Init(grid);
+                    }
+                    else
+                    {
+                        logic = LogicPool.Get();
+                        logic.Init(grid);
+
+                        GridLogic.Add(logic);
+                        GridLogicLookup.Add(grid.EntityId, logic);
+                    }
                 }
             }
             catch(Exception e)
@@ -96,7 +108,8 @@ namespace Digi.RealisticThrusters
         {
             try
             {
-                if(GridLogic.Count == 0)
+                int logicCount = GridLogic.Count;
+                if(logicCount == 0)
                     return;
 
                 if(++PlayersUpdateTick > PlayersUpdateInterval)
@@ -109,7 +122,7 @@ namespace Digi.RealisticThrusters
                 // logic from MyDistributedUpdater
                 LogicUpdateIndex = (LogicUpdateIndex + 1) % LogicUpdateInterval;
 
-                for(int i = LogicUpdateIndex; i < GridLogic.Count; i += LogicUpdateInterval)
+                for(int i = LogicUpdateIndex; i < logicCount; i += LogicUpdateInterval)
                 {
                     var logic = GridLogic[i];
 
@@ -127,10 +140,12 @@ namespace Digi.RealisticThrusters
                     foreach(int index in RemoveLogicIndex)
                     {
                         var logic = GridLogic[index];
-                        logic.Reset();
-                        LogicPool.Return(logic);
 
                         GridLogic.RemoveAtFast(index);
+                        GridLogicLookup.Remove(logic.Grid.EntityId);
+
+                        logic.Reset();
+                        LogicPool.Return(logic);
                     }
 
                     RemoveLogicIndex.Clear();
