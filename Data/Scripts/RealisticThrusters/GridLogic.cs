@@ -14,16 +14,19 @@ namespace Digi.RealisticThrusters
         private long _lastCheckedOwner;
 
         private bool RealisticThrusters;
-        private readonly List<Thruster> Thrusters = new List<Thruster>();
+        private readonly HashSet<Thruster> Thrusters = new HashSet<Thruster>();
 
         private bool ForcedRealistic;
-        private readonly List<IMyShipController> ShipControllers = new List<IMyShipController>();
+        private readonly HashSet<IMyShipController> ShipControllers = new HashSet<IMyShipController>();
 
         // NOTE: object is re-used, this is called when retrieved from pool.
         public void Init(MyCubeGrid grid)
         {
             try
             {
+                if(grid == null)
+                    throw new Exception("given grid was null!");
+
                 Grid = grid;
                 RealisticThrusters = true;
                 _lastCheckedOwner = -1;
@@ -73,22 +76,20 @@ namespace Digi.RealisticThrusters
             {
                 if(block is MyThrust)
                 {
-                    var logic = block?.GameLogic?.GetAs<Thruster>();
-                    if(logic != null)
+                    var logic = block.GameLogic?.GetAs<Thruster>();
+                    if(logic != null && Thrusters.Add(logic))
                     {
-                        Thrusters.Add(logic);
                         logic.SetRealisticMode(RealisticThrusters);
                     }
                     return;
                 }
 
                 var shipCtrl = block as IMyShipController;
-                if(shipCtrl != null)
+                if(shipCtrl != null && ShipControllers.Add(shipCtrl))
                 {
                     shipCtrl.CustomDataChanged += ShipCtrl_CustomDataChanged;
                     shipCtrl.OwnershipChanged += ShipCtrl_OwnershipChanged;
                     shipCtrl.OnMarkForClose += ShipCtrl_MarkedForClose;
-                    ShipControllers.Add(shipCtrl);
                     RefreshShipCtrlCustomData(addedBlock: true);
                     return;
                 }
@@ -105,31 +106,21 @@ namespace Digi.RealisticThrusters
             {
                 if(block is MyThrust)
                 {
-                    for(int i = (Thrusters.Count - 1); i >= 0; --i)
-                    {
-                        if(Thrusters[i].Block == block)
-                        {
-                            Thrusters.RemoveAtFast(i);
-                            break;
-                        }
-                    }
+                    var logic = block.GameLogic?.GetAs<Thruster>();
+                    if(logic != null)
+                        Thrusters.Remove(logic);
                     return;
                 }
 
                 var shipCtrl = block as IMyShipController;
                 if(shipCtrl != null)
                 {
-                    for(int i = (ShipControllers.Count - 1); i >= 0; --i)
+                    if(ShipControllers.Remove(shipCtrl))
                     {
-                        if(ShipControllers[i] == shipCtrl)
-                        {
-                            shipCtrl.CustomDataChanged -= ShipCtrl_CustomDataChanged;
-                            shipCtrl.OwnershipChanged -= ShipCtrl_OwnershipChanged;
-                            shipCtrl.OnMarkForClose -= ShipCtrl_MarkedForClose;
-                            ShipControllers.RemoveAtFast(i);
-                            RefreshShipCtrlCustomData();
-                            break;
-                        }
+                        shipCtrl.CustomDataChanged -= ShipCtrl_CustomDataChanged;
+                        shipCtrl.OwnershipChanged -= ShipCtrl_OwnershipChanged;
+                        shipCtrl.OnMarkForClose -= ShipCtrl_MarkedForClose;
+                        RefreshShipCtrlCustomData();
                     }
                     return;
                 }
@@ -160,9 +151,9 @@ namespace Digi.RealisticThrusters
                 // mode changed, apply it
                 if(prevRealistic != RealisticThrusters)
                 {
-                    for(int i = (Thrusters.Count - 1); i >= 0; --i)
+                    foreach(var logic in Thrusters)
                     {
-                        Thrusters[i].SetRealisticMode(RealisticThrusters);
+                        logic.SetRealisticMode(RealisticThrusters);
                     }
                 }
             }
