@@ -124,8 +124,7 @@ namespace Digi.RealisticThrusters
 
                 for(int i = LogicUpdateIndex; i < logicCount; i += LogicUpdateInterval)
                 {
-                    var logic = GridLogic[i];
-
+                    GridLogic logic = GridLogic[i];
                     if(logic.Grid.MarkedForClose)
                     {
                         RemoveLogicIndex.Add(i);
@@ -137,18 +136,27 @@ namespace Digi.RealisticThrusters
 
                 if(RemoveLogicIndex.Count > 0)
                 {
-                    foreach(int index in RemoveLogicIndex)
+                    try
                     {
-                        var logic = GridLogic[index];
+                        // sort ascending + iterate in reverse is required to avoid shifting indexes as we're removing.
+                        RemoveLogicIndex.Sort();
 
-                        GridLogic.RemoveAtFast(index);
-                        GridLogicLookup.Remove(logic.Grid.EntityId);
+                        for(int i = (RemoveLogicIndex.Count - 1); i >= 0; i--)
+                        {
+                            int index = RemoveLogicIndex[i];
+                            GridLogic logic = GridLogic[index];
 
-                        logic.Reset();
-                        LogicPool.Return(logic);
+                            GridLogic.RemoveAtFast(index);
+                            GridLogicLookup.Remove(logic.Grid.EntityId);
+
+                            logic.Reset();
+                            LogicPool.Return(logic);
+                        }
                     }
-
-                    RemoveLogicIndex.Clear();
+                    finally
+                    {
+                        RemoveLogicIndex.Clear();
+                    }
                 }
             }
             catch(Exception e)
