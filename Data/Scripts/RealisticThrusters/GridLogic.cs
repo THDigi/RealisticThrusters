@@ -13,10 +13,10 @@ namespace Digi.RealisticThrusters
         private bool _isNPCOwned;
         private long _lastCheckedOwner;
 
-        private bool RealisticThrusters;
+        private float RealismAmount;
         private readonly HashSet<Thruster> Thrusters = new HashSet<Thruster>();
 
-        private bool ForcedRealistic;
+        private float? ForcedRealismAmount;
         private readonly HashSet<IMyShipController> ShipControllers = new HashSet<IMyShipController>();
 
         // NOTE: object is re-used, this is called when retrieved from pool.
@@ -28,9 +28,9 @@ namespace Digi.RealisticThrusters
                     throw new Exception("given grid was null!");
 
                 Grid = grid;
-                RealisticThrusters = true;
+                RealismAmount = 1.0f;
+                ForcedRealismAmount = null;
                 _lastCheckedOwner = -1;
-                ForcedRealistic = false;
 
                 // NOTE: not all blocks are fatblocks, but the kind of blocks we need are always fatblocks.
                 foreach(var block in Grid.GetFatBlocks())
@@ -79,7 +79,7 @@ namespace Digi.RealisticThrusters
                     var logic = block.GameLogic?.GetAs<Thruster>();
                     if(logic != null && Thrusters.Add(logic))
                     {
-                        logic.SetRealisticMode(RealisticThrusters);
+                        logic.SetRealismAmount(RealismAmount);
                     }
                     return;
                 }
@@ -141,19 +141,21 @@ namespace Digi.RealisticThrusters
                 if(Thrusters.Count == 0 || Grid.EntityThrustComponent == null)
                     return; // no thrusters, skip.
 
-                bool prevRealistic = RealisticThrusters;
+                float prevRealism = RealismAmount;
 
-                if(ForcedRealistic || IsPlayerControlled())
-                    RealisticThrusters = true;
+                if(ForcedRealismAmount != null)
+                    RealismAmount = ForcedRealismAmount.Value;
+                else if(IsPlayerControlled())
+                    RealismAmount = 1.0f;
                 else
-                    RealisticThrusters = !IsNPCOwned();
+                    RealismAmount = IsNPCOwned() ? 0.0f : 1.0f;
 
                 // mode changed, apply it
-                if(prevRealistic != RealisticThrusters)
+                if(prevRealism != RealismAmount)
                 {
-                    foreach(var logic in Thrusters)
+                    foreach(var thruster in Thrusters)
                     {
-                        logic.SetRealisticMode(RealisticThrusters);
+                        thruster.SetRealismAmount(RealismAmount);
                     }
                 }
             }
@@ -163,6 +165,7 @@ namespace Digi.RealisticThrusters
             }
         }
 
+        // Note: this event doesn't seem to fire anymore, nor is it listed in the Mod API docs
         void ShipCtrl_CustomDataChanged(IMyTerminalBlock _unused)
         {
             RefreshShipCtrlCustomData();
@@ -176,10 +179,10 @@ namespace Digi.RealisticThrusters
         void RefreshShipCtrlCustomData(bool addedBlock = false)
         {
             // some other block is already forcing realistic mode grid-wide, don't recompute for newly added blocks.
-            if(addedBlock && ForcedRealistic)
+            if(addedBlock && ForcedRealismAmount != null)
                 return;
 
-            ForcedRealistic = false;
+            ForcedRealismAmount = null;
 
             foreach(var shipCtrl in ShipControllers)
             {
@@ -194,10 +197,28 @@ namespace Digi.RealisticThrusters
 
                 string customData = shipCtrl.CustomData; // cache because it allocates string on every call
 
-                if(!string.IsNullOrEmpty(customData) && customData.IndexOf(RealisticThrustersMod.CUSTOMDATA_FORCE_TAG, StringComparison.OrdinalIgnoreCase) != -1)
-                {
-                    ForcedRealistic = true;
-                    return;
+                if(!string.IsNullOrEmpty(customData)) {
+                    if (customData.IndexOf(RealisticThrustersMod.CUSTOMDATA_FORCE_TAG, StringComparison.OrdinalIgnoreCase) != -1)
+                    {
+                        ForcedRealismAmount = 1.0f;
+                        return;
+                    }
+                    int customDataPercentIndex = customData.IndexOf("realistic-thrust-", StringComparison.OrdinalIgnoreCase);
+                    if (customDataPercentIndex != -1)
+                    {
+                        int customDataPercentEndIndex = customData.IndexOf("%", customDataPercentIndex, StringComparison.OrdinalIgnoreCase);
+                        if (customDataPercentEndIndex != -1)
+                        {
+                            string percent = customData.Remove(customDataPercentEndIndex).Substring(customDataPercentIndex + ("realistic-thrust-").Length);
+                            ForcedRealismAmount = float.Parse(percent) / 100;
+                            return;
+                        }
+                    }
+                    if (customData.IndexOf(RealisticThrustersMod.CUSTOMDATA_DISABLE_TAG, StringComparison.OrdinalIgnoreCase) != -1)
+                    {
+                        ForcedRealismAmount = 0.0f;
+                        return;
+                    }
                 }
             }
         }

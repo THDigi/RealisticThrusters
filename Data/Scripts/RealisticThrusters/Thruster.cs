@@ -12,7 +12,7 @@ namespace Digi.RealisticThrusters
     public class Thruster : MyGameLogicComponent
     {
         public MyThrust Block;
-        bool RealisticMode = true;
+        float RealismAmount = 1.0f;
 
         public override void Init(MyObjectBuilder_EntityBase objectBuilder)
         {
@@ -27,14 +27,14 @@ namespace Digi.RealisticThrusters
 
         void WorkingChanged(MyCubeBlock obj)
         {
-            SetRealisticMode(RealisticMode);
+            SetRealismAmount(RealismAmount);
         }
 
-        public void SetRealisticMode(bool realisticMode)
+        public void SetRealismAmount(float realismAmount)
         {
-            RealisticMode = realisticMode;
+            RealismAmount = realismAmount;
 
-            if(RealisticMode && Block.IsWorking)
+            if(RealismAmount > 0.001f && Block.IsWorking)
                 NeedsUpdate |= MyEntityUpdateEnum.EACH_FRAME;
             else
                 NeedsUpdate &= ~MyEntityUpdateEnum.EACH_FRAME;
@@ -44,14 +44,14 @@ namespace Digi.RealisticThrusters
         {
             try
             {
-                if(!RealisticMode || !Block.IsWorking)
+                if(RealismAmount <= 0.001f || !Block.IsWorking)
                     return;
 
                 var grid = Block.CubeGrid;
                 if(grid.IsPreview || grid.Physics == null || !grid.Physics.Enabled || grid.Physics.IsStatic)
                     return;
 
-                float strength = Block.BlockDefinition.ForceMagnitude * Block.CurrentStrength;
+                float strength = Block.BlockDefinition.ForceMagnitude * Block.CurrentStrength * RealismAmount;
 
                 if(Math.Abs(strength) < 0.00001f)
                     return;

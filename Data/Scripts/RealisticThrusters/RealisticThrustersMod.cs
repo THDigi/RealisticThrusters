@@ -14,6 +14,7 @@ namespace Digi.RealisticThrusters
     public class RealisticThrustersMod : MySessionComponentBase
     {
         public const string CUSTOMDATA_FORCE_TAG = "force-realistic-thrust";
+        public const string CUSTOMDATA_DISABLE_TAG = "disable-realistic-thrust";
 
         public static RealisticThrustersMod Instance;
 
