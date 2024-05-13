@@ -50,7 +50,7 @@ namespace Digi.RealisticThrusters
 
                     foreach(IMyFaction faction in MyAPIGateway.Session.Factions.Factions.Values)
                     {
-                        if(faction.IsEveryoneNpc())
+                        if(!faction.AcceptHumans || faction.IsEveryoneNpc()) /// Must match the logic from <see cref="GridLogic.IsNPCOwned"/>
                             npcFactions.Add(faction);
                         else
                             playerFactions.Add(faction);

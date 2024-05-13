@@ -278,7 +278,7 @@ namespace Digi.RealisticThrusters
             }
             else
             {
-                _isNPCOwned = faction.IsEveryoneNpc();
+                _isNPCOwned = !faction.AcceptHumans || faction.IsEveryoneNpc(); // HACK: IsEveryoneNpc() doesn't work reliably so AcceptHumans was also added
             }
 
             return _isNPCOwned;
