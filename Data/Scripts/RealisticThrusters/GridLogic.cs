@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
+using VRage.Game.ModAPI;
 using VRage.ModAPI;
 
 namespace Digi.RealisticThrusters
@@ -33,7 +34,7 @@ namespace Digi.RealisticThrusters
                 ForcedRealistic = false;
 
                 // NOTE: not all blocks are fatblocks, but the kind of blocks we need are always fatblocks.
-                foreach(var block in Grid.GetFatBlocks())
+                foreach(MyCubeBlock block in Grid.GetFatBlocks())
                 {
                     BlockAdded(block);
                 }
@@ -76,7 +77,7 @@ namespace Digi.RealisticThrusters
             {
                 if(block is MyThrust)
                 {
-                    var logic = block.GameLogic?.GetAs<Thruster>();
+                    Thruster logic = block.GameLogic?.GetAs<Thruster>();
                     if(logic != null && Thrusters.Add(logic))
                     {
                         logic.SetRealisticMode(RealisticThrusters);
@@ -106,7 +107,7 @@ namespace Digi.RealisticThrusters
             {
                 if(block is MyThrust)
                 {
-                    var logic = block.GameLogic?.GetAs<Thruster>();
+                    Thruster logic = block.GameLogic?.GetAs<Thruster>();
                     if(logic != null)
                         Thrusters.Remove(logic);
                     return;
@@ -151,7 +152,7 @@ namespace Digi.RealisticThrusters
                 // mode changed, apply it
                 if(prevRealistic != RealisticThrusters)
                 {
-                    foreach(var logic in Thrusters)
+                    foreach(Thruster logic in Thrusters)
                     {
                         logic.SetRealisticMode(RealisticThrusters);
                     }
@@ -181,7 +182,7 @@ namespace Digi.RealisticThrusters
 
             ForcedRealistic = false;
 
-            foreach(var shipCtrl in ShipControllers)
+            foreach(IMyShipController shipCtrl in ShipControllers)
             {
                 if(Grid.BigOwners != null && Grid.BigOwners.Count > 0)
                 {
@@ -214,9 +215,9 @@ namespace Digi.RealisticThrusters
 
         bool IsPlayerControlled()
         {
-            var players = RealisticThrustersMod.Instance.Players; // list is updated in session comp
+            List<IMyPlayer> players = RealisticThrustersMod.Instance.Players; // list is updated in session comp
 
-            foreach(var player in players)
+            foreach(IMyPlayer player in players)
             {
                 if(player.IsBot || player.Character == null)
                     continue;
@@ -265,7 +266,7 @@ namespace Digi.RealisticThrusters
 
             _lastCheckedOwner = owner;
 
-            var faction = MyAPIGateway.Session.Factions.TryGetPlayerFaction(owner);
+            IMyFaction faction = MyAPIGateway.Session.Factions.TryGetPlayerFaction(owner);
 
             if(faction == null)
             {
