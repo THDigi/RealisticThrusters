@@ -38,6 +38,43 @@ namespace Digi.RealisticThrusters
             MyAPIGateway.Session.Factions.FactionEdited += FactionEdited;
         }
 
+        public override void BeforeStart()
+        {
+            try
+            {
+                if(MyAPIGateway.Session.IsServer)
+                {
+                    int count = MyAPIGateway.Session.Factions.Factions.Count;
+                    List<IMyFaction> npcFactions = new List<IMyFaction>(count);
+                    List<IMyFaction> playerFactions = new List<IMyFaction>(count);
+
+                    foreach(IMyFaction faction in MyAPIGateway.Session.Factions.Factions.Values)
+                    {
+                        if(faction.IsEveryoneNpc())
+                            npcFactions.Add(faction);
+                        else
+                            playerFactions.Add(faction);
+                    }
+
+                    PrintFactions(playerFactions, "player");
+                    PrintFactions(npcFactions, "NPC");
+                }
+            }
+            catch(Exception e)
+            {
+                Log.Error(e);
+            }
+        }
+
+        void PrintFactions(List<IMyFaction> factions, string kind)
+        {
+            Log.Info($"Detected {kind} factions ({factions.Count}):");
+            foreach(IMyFaction faction in factions)
+            {
+                Log.Info($"  [{faction.Tag}] {faction.Name} - Members={faction.Members.Count}; AcceptsHumans={faction.AcceptHumans}; Auto-accept:{faction.AutoAcceptMember}; FounderIdentity={faction.FounderId}");
+            }
+        }
+
         protected override void UnloadData()
         {
             Instance = null;
